@@ -12,7 +12,7 @@ if (process.env.NODE_ENV === 'production') {
 
 console.log('Bot server started in the ' + process.env.NODE_ENV + ' mode');
 
-bot.onText(/^/, function(msg) {
+bot.onText(/\/start/, function(msg) {
   bot.sendMessage(msg.chat.id, new Date()).then(function(sentMessage) {
     console.log(sentMessage);
   
