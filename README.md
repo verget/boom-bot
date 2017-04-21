@@ -38,7 +38,7 @@ To go back to development mode, you will need to run `npm run switch_to_dev`. Th
 As i work on MacOS and sometimes on Ubuntu, you may face some problems with my npm scripts, so let's figure out how they work.
 
 1. `npm run set_env` runs `export $(cat .env | xargs)` which actually set key-value pairs from the .env file to the environment.
-2. `npm run switch_to_dev` runs `export $(cat .env | xargs) && wget --spider https://api.telegram.org/bot$TOKEN/setWebhook?url= --delete-after && node index.js` which is actually `npm run set_env` + API call which will reset webhook + `npm start`. If wget don't work (or is not installed) on your OS, you can simply open the `https://api.telegram.org/botYOUR_TOKEN/setWebhook?url=` in your browser, but don't forget to replace YOUR_TOKEN with the token, you've got from the BotFather.
+2. `npm run switch_to_dev` runs `export $(cat .env | xargs) && wget --spider https://api.telegram.org/bot334935256:AAHjOFyqCVLK5pdbZ98_TvZTepLg-jrt9NQ/setWebhook?url= --delete-after && node index.js` which is actually `npm run set_env` + API call which will reset webhook + `npm start`. If wget don't work (or is not installed) on your OS, you can simply open the `https://api.telegram.org/botYOUR_TOKEN/setWebhook?url=` in your browser, but don't forget to replace YOUR_TOKEN with the token, you've got from the BotFather.
 
 If your bot is not responding locally, in most cases, you will need to reset the environment variables running `npm run set_env`.
 
