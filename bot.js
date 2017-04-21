@@ -14,20 +14,50 @@ if (process.env.NODE_ENV === 'production') {
 
 console.log('Bot server started in the ' + process.env.NODE_ENV + ' mode');
 
-const showTimer = (chat_id) => {
-  let now = moment();
-  console.log(now);
-  return bot.sendMessage(chat_id, new Date()).then(function(sentMessage) {
+
+const showCurrentTimestamp = (chat_id) => {
+  return bot.sendMessage(chat_id, moment().unix()).then(function(sentMessage) {
     setInterval(() => {
-      bot.editMessageText(new Date(), {'chat_id' : chat_id, 'message_id' : sentMessage.message_id}).then((response) => {
-        console.log(response);
+      bot.editMessageText(moment().unix(), {'chat_id' : chat_id, 'message_id' : sentMessage.message_id}).then((response) => {
+      //here should be something
       });
     }, 1000);
   });
 };
 
-bot.onText(/^/, function(msg) {
-  showTimer(msg.chat.id);
+const showTimeDifference = (chat_id) => {
+  let config;
+  fs.readFile('config.json', 'utf8', function (err, data) {
+    if (err) throw err;
+    config = JSON.parse(data);
+    const now = moment();
+    
+    let secondsAll = moment.unix(config.next_year).diff(now, 'seconds');
+    let hoursDif = Math.floor(secondsAll / 1200);
+    let minutesDif = Math.floor((secondsAll - (hoursDif * 1200)) / 60);
+    let secondsDif = secondsAll - (hoursDif * 1200) - (minutesDif * 60);
+    
+    if (hoursDif.length < 2) hoursDif += '0' + hoursDif;
+    if (minutesDif.length < 2) minutesDif += '0' + minutesDif;
+    if (secondsDif.length < 2) secondsDif += '0' + secondsDif;
+    console.log(hoursDif + ':' + minutesDif + ':' + secondsDif);
+  });
+  
+  // return bot.sendMessage(chat_id, moment().unix()).then(function(sentMessage) {
+  //   setInterval(() => {
+  //     bot.editMessageText(moment().unix(), {'chat_id' : chat_id, 'message_id' : sentMessage.message_id}).then((response) => {
+  //       //here should be something
+  //     });
+  //   }, 1000);
+  // });
+};
+
+bot.onText(/\/time/, function(msg) {
+  showCurrentTimestamp(msg.chat.id);
+});
+
+bot.onText(/\/current_dif/, function(msg) {
+  showTimeDifference(msg.chat.id);
 });
 
 bot.onText(/\/echo (.+)/, (msg, match) => {
