@@ -1,5 +1,7 @@
 const token = process.env.TOKEN;
 
+const fs = require('fs');
+const moment = require('moment');
 const Bot = require('node-telegram-bot-api');
 let bot;
 
@@ -12,17 +14,20 @@ if (process.env.NODE_ENV === 'production') {
 
 console.log('Bot server started in the ' + process.env.NODE_ENV + ' mode');
 
-bot.onText(/^/, function(msg) {
-  bot.sendMessage(msg.chat.id, new Date()).then(function(sentMessage) {
-    console.log(sentMessage);
-  
+const showTimer = (chat_id) => {
+  let now = moment();
+  console.log(now);
+  return bot.sendMessage(chat_id, new Date()).then(function(sentMessage) {
     setInterval(() => {
-      bot.editMessageText(new Date(), {'chat_id' : msg.chat.id, 'message_id' : sentMessage.message_id}).then((response) => {
+      bot.editMessageText(new Date(), {'chat_id' : chat_id, 'message_id' : sentMessage.message_id}).then((response) => {
         console.log(response);
       });
     }, 1000);
   });
-  
+};
+
+bot.onText(/^/, function(msg) {
+  showTimer(msg.chat.id);
 });
 
 bot.onText(/\/echo (.+)/, (msg, match) => {
