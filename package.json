@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "export $(cat .env | xargs) && node index.js",
+    "start_win": "set NODE_ENV=development && node index.js",
     "set_env": "export $(cat .env | xargs)",
-    "switch_to_dev": "export $(cat .env | xargs) && wget --spider https://api.telegram.org/bot$TOKEN/setWebhook?url= --delete-after && node index.js"
+    "set_env_win": "env.cmd",
+    "switch_to_dev": "export $(cat .env | xargs) && wget --spider https://api.telegram.org/bot334935256:AAHjOFyqCVLK5pdbZ98_TvZTepLg-jrt9NQ/setWebhook?url= --delete-after && node index.js"
   },
   "author": "verget",
   "license": "ISC",
