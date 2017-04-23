@@ -1,4 +1,4 @@
-const token = process.env.TOKEN || '334935256:AAHjOFyqCVLK5pdbZ98_TvZTepLg-jrt9NQ';//process.env.TOKEN;
+const token = process.env.TOKEN || '334935256:AAHjOFyqCVLK5pdbZ98_TvZTepLg-jrt9NQ';
 
 const fs = require('fs');
 const moment = require('moment');
@@ -18,26 +18,23 @@ const getTimer = (finishTime) => {
   return new Promise((res, rej) => {
     const now = moment();
     let secondsAll = moment.unix(finishTime).diff(now, 'seconds');
-    let hoursDif = Math.floor(secondsAll / 1200);
-    let minutesDif = Math.floor((secondsAll - (hoursDif * 1200)) / 60);
-    let secondsDif = secondsAll - (hoursDif * 1200) - (minutesDif * 60);
+    let hoursDif = Math.floor(secondsAll / 3600);
+    let minutesDif = Math.floor((secondsAll - (hoursDif * 3600)) / 60);
+    let secondsDif = secondsAll - (hoursDif * 3600) - (minutesDif * 60);
 
     if (hoursDif.toString().length < 2) hoursDif = '0' + hoursDif;
     if (minutesDif.toString().length < 2) minutesDif = '0' + minutesDif;
     if (secondsDif.toString().length < 2) secondsDif = '0' + secondsDif;
-    res({
-      h: hoursDif,
-      m: minutesDif,
-      s: secondsDif
-    });
+    res({h: hoursDif, m: minutesDif, s: secondsDif});
   });
 };
 
 const showTimeDifference = (chat_id) => {
   return new Promise((res, rej) => {
     fs.readFile('users/' + chat_id + '.json', 'utf8', function (err, userData) {
-      if (err) throw('unknown user');
+      if (err) rej('unknown user');
       userData = JSON.parse(userData);
+      console.log(moment(userData.finishTime));
       getTimer(userData.finishTime).then((timer) => {
         console.log(timer);
         bot.sendMessage(chat_id, timer.h + ':' + timer.m + ':' + timer.s).then((sentMessage) => {
@@ -46,7 +43,7 @@ const showTimeDifference = (chat_id) => {
               bot.editMessageText(timer.h + ':' + timer.m + ':' + timer.s, {
                 'chat_id': chat_id, 'message_id': sentMessage.message_id
               }).then((response) => {
-                //here should be something
+                //here can be something
               })
             })
           }, 1000);
@@ -67,9 +64,8 @@ bot.onText(/\/dif/, function (msg) {
 
 bot.onText(/\/start/, function (msg) {
   if (fs.existsSync('users/' + msg.chat.id + '.json')) { //check for user exist
-    bot.sendMessage(msg.chat.id, "Your game already started").then(() => {
-      return false;
-    });
+    bot.sendMessage(msg.chat.id, "Your game already started");
+    return false;
   }
   let userObject = msg.from;
   userObject.finishTime = moment().add(30, 'minutes').unix();
@@ -89,6 +85,31 @@ bot.onText(/\/echo (.+)/, (msg, match) => {
 
   // send back the matched "whatever" to the chat
   bot.sendMessage(msg.chat.id, resp);
+});
+
+bot.onText(/\/add (.+)/, (msg, match) => {
+  const resp = match[1] *1;
+  console.log(resp);
+  if(Number.isInteger(resp)){
+    console.log('is number');
+    if (fs.existsSync('users/' + msg.chat.id + '.json')) {
+      fs.readFile('users/' +  msg.chat.id + '.json', 'utf8', function (err, userString) {
+        if (err){
+          return false;
+        }
+        let userObject = JSON.parse(userString);
+        console.log(moment(userObject.finishTime).add(resp, 'seconds').unix());
+        userObject.finishTime = moment(userObject.finishTime).add(resp, 'seconds').unix(); //todo negative numbers?
+        fs.writeFile('users/' + msg.chat.id + '.json', JSON.stringify(userObject), () => {
+          bot.sendMessage(msg.chat.id, "Your timer updated " + userObject.first_name).then((message) => {
+            showTimeDifference(message.chat.id);
+          })
+        });
+      })
+    }
+  }
+  bot.sendMessage(msg.chat.id, "No idea what you're mean");
+  return false;
 });
 
 bot.on('polling_error', (error) => {
