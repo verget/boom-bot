@@ -9,6 +9,7 @@ const eventer = new MyEmitter();
 
 let bot;
 let users = [];
+let codeBase = JSON.parse(fs.readFileSync('codes.json', 'utf8')).base;
 
 if (process.env.NODE_ENV === 'production') {
   bot = new Bot(token);
@@ -19,42 +20,28 @@ if (process.env.NODE_ENV === 'production') {
 
 console.log('Bot server started in the ' + process.env.NODE_ENV + ' mode');
 
-const globalInterval = () => {
-  let intervalId = setInterval(() => {
-    if (!users.length){
-      return false;
-    }
-    for (let user of users){
-      fs.readFile('users/' + user.chat_id + '.json', 'utf8', function (err, userData) {
-        let userObject = JSON.parse(userData);
-        if (userObject.finishTime && !err){
-          getTimer(userObject.finishTime).then((timer) => {
-            if (user.timer_message_id){
-              bot.editMessageText(timer.h + ':' + timer.m + ':' + timer.s, {
-                'chat_id': user.chat_id, 'message_id': user.timer_message_id
-              })
-            }else{
-              bot.sendMessage(user.chat_id, timer.h + ':' + timer.m + ':' + timer.s).then((sentMessage) => {
-                user.timer_message_id = sentMessage.message_id;
-              });
-            }
-            if (timer.zero){
-              users.splice(users.indexOf(user));
-            }
-          }).catch((err) => {
-            console.error(err || 'something wrong with timer');
-          })
-        }else{
-          console.error(err || 'something wrong with user');
+const getUser = (user_id) => {
+  return new Promise((res, rej) => {
+    if (fs.existsSync('users/' + user_id + '.json')) {
+      return fs.readFile('users/' +  user_id + '.json', 'utf8', function (err, userString) {
+        if (err) {
+          console.error(err);
+          rej(false);
         }
-      })
+        return res(JSON.parse(userString));
+      });
     }
-  }, 1000);
-  
-  eventer.on('game:stop', () => {
-    clearInterval(intervalId);
+    rej();
   });
-  
+};
+
+const saveUser = (userObject) => {
+  return new Promise((res, rej) => {
+    fs.writeFile('users/' + userObject.id + '.json', JSON.stringify(userObject), (err) => {
+      if (err) rej(err);
+      res();
+    });
+  });
 };
 
 const getTimer = (finishTime) => {
@@ -67,7 +54,7 @@ const getTimer = (finishTime) => {
     let hoursDif = Math.floor(secondsAll / 3600);
     let minutesDif = Math.floor((secondsAll - (hoursDif * 3600)) / 60);
     let secondsDif = secondsAll - (hoursDif * 3600) - (minutesDif * 60);
-
+    
     if (hoursDif.toString().length < 2) hoursDif = '0' + hoursDif;
     if (minutesDif.toString().length < 2) minutesDif = '0' + minutesDif;
     if (secondsDif.toString().length < 2) secondsDif = '0' + secondsDif;
@@ -75,28 +62,110 @@ const getTimer = (finishTime) => {
   });
 };
 
-const userInit = (chat) => {
-  if (fs.existsSync('users/' + chat.id + '.json')) { //check for user exist
-    bot.sendMessage(chat.id, "Your game already started").then(() => {
-      if (!users.find((usr) => usr.chat_id === chat.id)){
-        users.push({
-          chat_id : chat.id
+const changeTimer = (user, count) => {
+  return new Promise((res, rej) => {
+    user.finishTime = moment.unix(user.finishTime).add(count, 'seconds').unix();
+    saveUser(user).then(() => {
+      bot.sendMessage(user.id, "Your timer updated " + user.first_name).then((message) => {
+        let currentUser = users.find((usr) => usr.id === user.id);
+        if (!currentUser){
+          users.push({
+            id : user.id
+          });
+        }else{
+          currentUser.timer_message_id = '';
+        }
+        return res();
+      })
+    });
+  });
+};
+
+const globalInterval = () => {
+  let intervalId = setInterval(() => {
+    if (!users.length){
+      return false;
+    }
+    for (let user of users){
+      if (user){
+        return getUser(user.id).then((userObject) => {
+          if (userObject.finishTime){
+            getTimer(userObject.finishTime).then((timer) => {
+              if (user.timer_message_id){
+                bot.editMessageText(timer.h + ':' + timer.m + ':' + timer.s, {
+                  'chat_id': user.id, 'message_id': user.timer_message_id
+                })
+              }else{
+                bot.sendMessage(user.id, timer.h + ':' + timer.m + ':' + timer.s).then((sentMessage) => {
+                  user.timer_message_id = sentMessage.message_id;
+                });
+              }
+              if (timer.zero){
+                users.splice(users.indexOf(user));
+              }
+            }).catch((err) => {
+              console.error(err || 'something wrong with timer');
+            })
+          }else{
+            console.error('something wrong with user');
+          }
+        }).catch(() => {
+          return false;
         });
+      }
+    }
+  }, 1000);
+  
+  eventer.on('game:stop', () => {
+    clearInterval(intervalId);
+  });
+};
+
+const userInit = (chat) => {
+  if (fs.existsSync('users/' + chat.id + '.json')) { //if user exist
+    return bot.sendMessage(chat.id, "Your game already started").then(() => {
+      let currentUser = users.find((usr) => usr.id === chat.id);
+      if (!currentUser){
+        users.push({
+          id : chat.id
+        });
+      }else{
+        currentUser.timer_message_id = '';
       }
       return false;
     });
   }
   
-  let userObject = chat.from;
+  //if new user
+  let userObject = chat;
   userObject.finishTime = moment().add(30, 'minutes').unix();
-  fs.writeFile('users/' + chat.id + '.json', JSON.stringify(userObject), () => {
+  userObject.codes = [];
+  fs.writeFile('users/' + chat.id + '.json', JSON.stringify(userObject), (err) => {
+    if (err) {
+      return console.error(err);
+    }
     bot.sendMessage(chat.id, "Your game just started " + userObject.first_name).then(() => {
       users.push({
-        chat_id : chat.id
+        id : chat.id
       });
     })
   }); //create new user file with user data from Tg
   return false;
+};
+
+const codeCheck = (chat_id, code) => {
+  getUser(chat_id).then((user) => {
+    if (!user.codes.find((oldCode) => oldCode === code.id)){
+      changeTimer(user.id, code.value).then(() => {
+        user.codes.push(code.id);
+        return true;
+      });
+    } else {
+      return bot.sendMessage(chat_id, "Old code");
+    }
+  }).catch(() => {
+    return bot.sendMessage(chat_id, "Your game was not started, send /start");
+  });
 };
 
 bot.onText(/\/stop/, () => {
@@ -104,37 +173,18 @@ bot.onText(/\/stop/, () => {
 });
 
 bot.onText(/\/start/, function (msg) {
-  userInit(msg.chat);
+  return userInit(msg.chat);
 });
 
 bot.onText(/\/add (.+)/, (msg, match) => {
   const resp = match[1] * 1;
   if(Number.isInteger(resp)){
-    if (fs.existsSync('users/' + msg.chat.id + '.json')) {
-      return fs.readFile('users/' +  msg.chat.id + '.json', 'utf8', function (err, userString) {
-        if (err){
-          console.error(err);
-          return false;
-        }
-        let userObject = JSON.parse(userString);
-        userObject.finishTime = moment.unix(userObject.finishTime).add(resp, 'seconds').unix();
-        fs.writeFile('users/' + msg.chat.id + '.json', JSON.stringify(userObject), () => {
-          bot.sendMessage(msg.chat.id, "Your timer updated " + userObject.first_name).then((message) => {
-            let currentUser = users.find((usr) => usr.chat_id === msg.chat.id);
-            if (!currentUser){
-              users.push({
-                chat_id : msg.chat.id
-              });
-            }else{
-              currentUser.timer_message_id = '';
-            }
-            return false;
-          })
-        });
-      })
-    }
+    return getUser(msg.chat.id).then((user) => {
+      return changeTimer(user, resp);
+    });
+  } else {
+    return bot.sendMessage(msg.chat.id, "No idea what you're mean");
   }
-  return bot.sendMessage(msg.chat.id, "No idea what you're mean");
 });
 
 bot.onText(/\/echo (.+)/, (msg, match) => {
@@ -146,6 +196,18 @@ bot.onText(/\/echo (.+)/, (msg, match) => {
   
   // send back the matched "whatever" to the chat
   bot.sendMessage(msg.chat.id, resp);
+});
+
+bot.onText(/(.+)/, (msg, match) => {
+  if (match[1][0] === '/'){
+    return false;
+  }
+  let foundCode = codeBase.find((code) => code.string === match[1]);
+  console.log(msg.chat.id, foundCode);
+  if (foundCode){
+    codeCheck(msg.chat.id, foundCode);
+  }
+  return false;
 });
 
 bot.on('polling_error', (error) => {
