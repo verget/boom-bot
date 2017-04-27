@@ -1,14 +1,1 @@
-{
-  "base" : [
-    {
-      "id" : 1,
-      "string" : "aaa",
-      "value": 300
-    },
-    {
-      "id" : 2,
-      "string" : "bbb",
-      "value": -100
-    }
-  ]
-}
+[{"string":"aaa","value":300},{"string":"bbb","value":-100},{"string":"sss","value":11},{"string":"rrr","value":444},{"string":"rr5","value":100},{"string":"asd","value":122},{"string":"ggg","value":111},{"string":"gg","value":11}]
