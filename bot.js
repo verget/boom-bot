@@ -1,18 +1,16 @@
 const token = process.env.TOKEN;
 const fs = require('fs');
-const EventEmitter = require('events');
 const moment = require('moment');
 const Bot = require('node-telegram-bot-api');
 
-class MyEmitter extends EventEmitter {}
-const eventer = new MyEmitter();
-
 const UserService = require('./user');
-const Code = require('./code');
-const CodeService = new Code;
+const CodeService = require('./code');
+
+const admins = [45417065];
 
 let bot;
 let users = [];
+moment.locale('ru');
 
 if (process.env.NODE_ENV === 'production') {
   bot = new Bot(token);
@@ -51,7 +49,7 @@ const changeTimer = (user, count) => {
   return new Promise((res, rej) => {
     user.finishTime = moment.unix(user.finishTime).add(count, 'seconds').unix();
     return UserService.saveUser(user).then(() => {
-      return bot.sendMessage(user.id, "Your timer updated " + user.first_name).then((message) => {
+      return bot.sendMessage(user.id, "Ваш таймер обновлен " + user.title).then((message) => {
         let currentUser = users.find((usr) => usr.id === user.id);
         if (!currentUser) {
           users.push({
@@ -60,9 +58,9 @@ const changeTimer = (user, count) => {
         } else {
           currentUser.timer_message_id = '';
         }
-        res();
+        res(moment.unix(user.finishTime).format('lll:s'));
       })
-    });
+    }).catch(rej);
   });
 };
 
@@ -112,7 +110,7 @@ const globalInterval = () => {
 
 const userInit = (chat) => {
   if (fs.existsSync('users/' + chat.id + '.json')) { //if user exist
-    return bot.sendMessage(chat.id, "Your game already started").then(() => {
+    return bot.sendMessage(chat.id, "Ваша игра уже идет").then(() => {
       let currentUser = users.find((usr) => usr.id === chat.id);
       if (!currentUser) {
         users.push({
@@ -128,12 +126,15 @@ const userInit = (chat) => {
   //if new user
   let userObject = chat;
   userObject.finishTime = moment().add(30, 'minutes').unix();
+  if (!userObject.title){
+    userObject.title = userObject.first_name;
+  }
   userObject.codes = [];
   fs.writeFile('users/' + chat.id + '.json', JSON.stringify(userObject), (err) => {
     if (err) {
       return console.error(err);
     }
-    bot.sendMessage(chat.id, "Your game just started " + userObject.first_name).then(() => {
+    return bot.sendMessage(chat.id, "Ваша игра началась " + userObject.title).then(() => {
       users.push({
         id: chat.id
       });
@@ -152,12 +153,12 @@ const useCode = (chat_id, code) => {
         });
       });
     } else {
-      return bot.sendMessage(chat_id, "Old code").then(() => {
+      return bot.sendMessage(chat_id, "Было").then(() => {
         return false;
       });
     }
   }).catch(() => {
-    return bot.sendMessage(chat_id, "Your game was not started, send /start").then(() => {
+    return bot.sendMessage(chat_id, "Ваша игра еще не началась, отправьте /start").then(() => {
       return false;
     });
   });
@@ -167,83 +168,159 @@ bot.onText(/\/start/, function(msg) {
   return userInit(msg.chat);
 });
 
-bot.onText(/\/stop/, () => { //admin func
+bot.onText(/\/help/, function(msg) {
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id,
+      "/start_game Начало игры, выставляет финишное время на сейчас + 30 минут \n"
+    );
+  }
+  return bot.sendMessage(msg.chat.id,
+        "/code_list - Показывает список кодов с их стоимостью. \n" +
+        "/create_code [code_name] [code_value] - Создает новый код [code_name] со стоимостью  [code_value].\n" +
+        "/delete_code [code_name] - Удаляет код с именем [code_name].\n" +
+        "/change_code [code_name] [code_value] - Устанавливает стоимость [code_value] для кода [code_name] (не влияет на уже введенные юзером коды).\n" +
+        "/user_list - Показывает список пользователей, начавших игру, с финишным временем и активированными кодами. \n" +
+        "/clean_code [user_id] [code_name] - Убирает отметку использования для кода [code_name] у юзера [user_id]. \n" +
+        "/delete_user [user_id] - Удаляет всю информацию о пользователе.\n" +
+        "/change_time [user_id] [time_count] - Меняет финишное время для пользователя [user_id] на [time_count] (может быть отрицательным). \n" +
+        "/restart_game - Перезагрузка, нужна для старта новой игры, команда удаляет всех сохраненных пользователей. \n" +
+        "[code_value] - измеряется в секундах; [code_name] - строка русский или английских букв и цифр, не может начинаться с /."
+  );
+});
+
+bot.onText(/\/start_game/, function(msg) {
+  return userInit(msg.chat);
+});
+
+bot.onText(/\/stop_digest/, () => { //admin func, no idea for why I need it
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
   eventer.emit('game:stop');
 });
 
+bot.onText(/\/restart_game/, (msg) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
+  users = [];
+  return UserService.deleteAllUsers().then(() => {
+    return bot.sendMessage(msg.chat.id, "Все пользователи удалены");
+  });
+});
+
 bot.onText(/\/create_code (.+) (.+)/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
   const codeString = match[1];
   const codeValue = match[2] * 1;
   if (!codeString || !codeValue || !Number.isInteger(codeValue)){
-    return bot.sendMessage(msg.chat.id, "You forgot something, should be '/new_code [code_name] [code_value]'");
+    return bot.sendMessage(msg.chat.id, "Вы что-то забыли, должно быть: '/create_code [code_name] [code_value]'");
   }
   return CodeService.newCode(codeString, codeValue).then(() => {
-    return bot.sendMessage(msg.chat.id, "New code " + codeString + " with value " + codeValue + " added");
+    return bot.sendMessage(msg.chat.id, "Новый код " + codeString + " со стоимостью " + codeValue + " добавлен");
   }).catch((codeString) => {
-    return bot.sendMessage(msg.chat.id, "This code already in base, for change it send /change_code " + codeString);
+    return bot.sendMessage(msg.chat.id, "Этот код уже в базе, чтобы изменить, отправьте /change_code [code_name] [code_value]" + codeString);
   })
 });
 
 
-bot.onText(/\/remove_code (.+)/, (msg, match) => { //admin func
+bot.onText(/\/delete_code (.+)/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
   const codeString = match[1];
   if (!codeString){
-    return bot.sendMessage(msg.chat.id, "You forgot something, should be '/remove_code [code_name]'");
+    return bot.sendMessage(msg.chat.id, "Вы что-то забыли, должно быть: '/delete_code [code_name]'");
   }
   return CodeService.changeCode(codeString).then(() => {
-    return bot.sendMessage(msg.chat.id, "Code " + codeString + " removed");
+    return bot.sendMessage(msg.chat.id, "Код " + codeString + " удален");
   }).catch((err) => {
     console.error(err);
-    return bot.sendMessage(msg.chat.id, "Code not found");
+    return bot.sendMessage(msg.chat.id, "Код не найден");
   })
 });
 
 bot.onText(/\/change_code (.+) (.+)/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
   const codeString = match[1];
   const codeValue = match[2] * 1;
   if (!codeString || !codeValue || !Number.isInteger(codeValue)){
-    return bot.sendMessage(msg.chat.id, "You forgot something, should be '/change_code [code_name] [code_value]'");
+    return bot.sendMessage(msg.chat.id, "Вы что-то забыли, должно быть: '/change_code [code_name] [code_value]'");
   }
   return CodeService.changeCode(codeString, codeValue).then(() => {
-    return bot.sendMessage(msg.chat.id, "Code " + codeString + " changed now its value is " + codeValue);
+    return bot.sendMessage(msg.chat.id, "Код " + codeString + " изменен, теперь его стоимость " + codeValue);
   }).catch((err) => {
     console.error(err);
-    return bot.sendMessage(msg.chat.id, "Code not found");
+    return bot.sendMessage(msg.chat.id, "Код не найден");
   })
 });
 
 bot.onText(/\/user_list/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
   return bot.sendMessage(msg.chat.id, JSON.stringify(users));
 });
 
 bot.onText(/\/code_list/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
   return bot.sendMessage(msg.chat.id, JSON.stringify(CodeService.codeBase));
 });
 
 bot.onText(/\/clean_code (.+) (.+)/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
   const userId = match[1] * 1;
   const codeString = match[2];
   if (Number.isInteger(userId)) {
     return UserService.getUser(userId).then((user) => {
       return UserService.cleanCode(user, codeString);
     }).catch(() => {
-      return bot.sendMessage(msg.chat.id, "User not found");
+      return bot.sendMessage(msg.chat.id, "Юзер не найден");
     });
   }
-  return bot.sendMessage(msg.chat.id, "No idea what you're mean");
+  return bot.sendMessage(msg.chat.id, "Что?");
+});
+
+bot.onText(/\/delete_user (.+)/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
+  const userId = match[1] * 1;
+  if (Number.isInteger(userId)) {
+    return UserService.deleteUser(userId).then(() => {
+      users.splice(users.indexOf(userId));
+      return bot.sendMessage(msg.chat.id, "Юзер " + userId + " удален");
+    }).catch(() => {
+      return bot.sendMessage(msg.chat.id, "Юзер не найден");
+    });
+  }
+  return bot.sendMessage(msg.chat.id, "Что?");
 });
 
 bot.onText(/\/change_time (.+) (.+)/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return bot.sendMessage(msg.chat.id, "Нет прав");
+  }
   const userId = match[1] * 1;
   const timeCount = match[2] * 1;
   if (Number.isInteger(timeCount)) {
     return UserService.getUser(userId).then((user) => {
-      return changeTimer(user, timeCount);
+      return changeTimer(user, timeCount).then((timeEnd) => {
+        return bot.sendMessage(msg.chat.id, "Время юзера " + user.title +" закончится " + timeEnd);
+      });
     }).catch(() => {
-      return bot.sendMessage(msg.chat.id, "User not found");
+      return bot.sendMessage(msg.chat.id, "Юзер не найден");
     });
   } else {
-    return bot.sendMessage(msg.chat.id, "No idea what you're mean");
+    return bot.sendMessage(msg.chat.id, "Что?");
   }
 });
 

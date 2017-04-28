@@ -44,4 +44,4 @@ class CodeService {
     });
   }
 }
-module.exports = CodeService;
+module.exports = new CodeService();
