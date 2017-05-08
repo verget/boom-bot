@@ -1,4 +1,4 @@
-const token = process.env.TOKEN;
+const token = process.env.TOKEN || "334935256:AAHjOFyqCVLK5pdbZ98_TvZTepLg-jrt9NQ";
 const fs = require('fs');
 const moment = require('moment');
 const Bot = require('node-telegram-bot-api');
@@ -11,7 +11,6 @@ const admins = [45417065];
 let bot;
 let users = [];
 moment.locale('ru');
-
 if (process.env.NODE_ENV === 'production') {
   bot = new Bot(token);
   bot.setWebHook(process.env.HEROKU_URL + bot.token);
@@ -31,7 +30,7 @@ const getTimer = (finishTime) => {
     let hoursDif = Math.floor(secondsAll / 3600);
     let minutesDif = Math.floor((secondsAll - (hoursDif * 3600)) / 60);
     let secondsDif = secondsAll - (hoursDif * 3600) - (minutesDif * 60);
-  
+
     if (hoursDif.toString().length < 2) {
       hoursDif = '0' + hoursDif;
     }
@@ -69,6 +68,7 @@ const globalInterval = () => {
     if (!users.length) {
       return false;
     }
+    console.log(users);
     for (let user of users) {
       if (user) {
         return UserService.getUser(user.id).then((userObject) => {
@@ -102,10 +102,6 @@ const globalInterval = () => {
       }
     }
   }, 1000);
-  
-  eventer.on('game:stop', () => {
-    clearInterval(intervalId);
-  });
 };
 
 const userInit = (chat) => {
@@ -122,7 +118,7 @@ const userInit = (chat) => {
       return false;
     });
   }
-  
+
   //if new user
   let userObject = chat;
   userObject.finishTime = moment().add(30, 'minutes').unix();
@@ -196,7 +192,7 @@ bot.onText(/\/stop_digest/, () => { //admin func, no idea for why I need it
   if (admins.indexOf(msg.chat.id) < 0) {
     return bot.sendMessage(msg.chat.id, "Нет прав");
   }
-  eventer.emit('game:stop');
+//  eventer.emit('game:stop');
 });
 
 bot.onText(/\/restart_game/, (msg) => { //admin func
@@ -342,11 +338,11 @@ bot.onText(/(.+)/, (msg, match) => {
 });
 
 bot.on('polling_error', (error) => {
-  console.error('polling_error ' + error.code);  // => 'EFATAL'
+  console.error('polling_error ' + error);  // => 'EFATAL'
 });
 
 bot.on('webhook_error', (error) => {
-  console.error('webhook_error ' + error.code);  // => 'EPARSE'
+  console.error('webhook_error ' + error);  // => 'EPARSE'
 });
 
 globalInterval();
