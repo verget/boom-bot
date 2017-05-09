@@ -1,6 +1,6 @@
 const moment = require('moment');
-const eventer = require('./services/eventer');
-const userService = require('./services/user');
+const eventer = require('./eventer');
+const userService = require('./user');
 moment.locale('ru');
 
 class timerService {

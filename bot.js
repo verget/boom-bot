@@ -143,12 +143,12 @@ bot.onText(/\/change_code (.+) (.+)/, (msg, match) => { //admin func
   })
 });
 
-// bot.onText(/\/user_list/, (msg, match) => { //admin func
-//   if (admins.indexOf(msg.chat.id) < 0) {
-//     return bot.sendMessage(msg.chat.id, "Нет прав");
-//   }
-//   return bot.sendMessage(msg.chat.id, JSON.stringify(users));
-// });
+bot.onText(/\/user_list/, (msg, match) => { //admin func
+  if (admins.indexOf(msg.chat.id) < 0) {
+    return eventer.emit('message:send', msg.chat.id, "Нет прав");
+  }
+  return eventer.emit('message:send', msg.chat.id, JSON.stringify(userService.userList));
+});
 
 bot.onText(/\/code_list/, (msg, match) => { //admin func
   if (admins.indexOf(msg.chat.id) < 0) {
@@ -165,7 +165,7 @@ bot.onText(/\/clean_code (.+) (.+)/, (msg, match) => { //admin func
   const codeString = match[2];
   if (Number.isInteger(userId)) {
     return userService.getUser(userId).then((user) => {
-      return userService.cleanCode(user, codeString);
+      return userService.cleanCodeForUser(user, codeString);
     }).catch(() => {
       return eventer.emit('message:send', msg.chat.id, "Юзер не найден");
     });
