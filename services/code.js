@@ -1,8 +1,8 @@
 const fs = require('fs');
 
-class CodeService {
+class codeService {
   constructor() {
-    this.codeBase = JSON.parse(fs.readFileSync('codes.json', 'utf8'));
+    this.codeBase = JSON.parse(fs.readFileSync('storage/codes.json', 'utf8'));
   }
   
   saveCodes() {
@@ -44,4 +44,4 @@ class CodeService {
     });
   }
 }
-module.exports = new CodeService();
+module.exports = new codeService();

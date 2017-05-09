@@ -1,10 +1,31 @@
 const fs = require('fs');
-
-class UserService {
-
+const moment = require('moment');
+class userService {
   constructor() {
 
   }
+  userInit(chat) {
+    return new Promise((res, rej) => {
+      if (fs.existsSync('users/' + chat.id + '.json')) { //if user exist
+        return userService.getUser(chat.id).then((user) => {
+          return res(user);
+        });
+      } //if new user
+      let userObject = chat;
+      userObject.finishTime = moment().add(30, 'minutes').unix();
+      if (!userObject.title) {
+        userObject.title = userObject.first_name;
+      }
+      userObject.codes = [];
+      fs.writeFile('storage/users/' + chat.id + '.json', JSON.stringify(userObject), (err) => {
+        if (err) {
+          return rej(console.error(err));
+        }
+        eventer.emit('message:send', chat.id, "Ваша игра началась " + userObject.title);
+        return res(userObject);
+      }); //create new user file with user data from Tg
+    });
+  };
 
   getUser(user_id) {
     return new Promise((res, rej) => {
@@ -14,9 +35,9 @@ class UserService {
             console.error(err);
             rej(false);
           }
-          if (userString){
+          if (userString) {
             return res(JSON.parse(userString));
-          }else{
+          } else {
             rej(false);
           }
         });
@@ -69,7 +90,6 @@ class UserService {
       return Promise.reject();
     }
   }
-
 }
 
-module.exports = new UserService();
+module.exports = new userService();
