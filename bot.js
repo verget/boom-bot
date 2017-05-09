@@ -31,11 +31,9 @@ const useCode = (chat_id, code) => {
   return userService.getUser(chat_id).then((user) => {
     if (user.finishTime > moment().unix()) {
       if (!user.codes.find((oldCode) => oldCode === code.string)) {
-        return timerService.changeTimer(user, code.value).then(() => {
-          user.codes.push(code.string);
-          return userService.saveUser(user).then(() => {
-            return timerService.sendTimer(user);
-          });
+        user.codes.push(code.string);
+        return timerService.changeTimer(user, code.value).catch(() => {
+          return console.error('cant change timer');
         });
       } else {
         eventer.emit('message:send', chat_id, "Было");
@@ -46,7 +44,7 @@ const useCode = (chat_id, code) => {
       return false;
     }
   }).catch(() => {
-    eventer.emit('message:send', chat_id, "Ваша игра еще не началась, отправьте /start");
+    eventer.emit('message:send', chat_id, "Ваша игра еще не началась, отправьте /start_game");
     return false;
   });
 };
@@ -165,7 +163,9 @@ bot.onText(/\/clean_code (.+) (.+)/, (msg, match) => { //admin func
   const codeString = match[2];
   if (Number.isInteger(userId)) {
     return userService.getUser(userId).then((user) => {
-      return userService.cleanCodeForUser(user, codeString);
+      return userService.cleanCodeForUser(user, codeString).then(() => {
+        return eventer.emit('message:send', msg.chat.id, "Список кодов юзера изменен");
+      });
     }).catch(() => {
       return eventer.emit('message:send', msg.chat.id, "Юзер не найден");
     });

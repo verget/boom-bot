@@ -8,7 +8,7 @@ class userService {
   userInit(chat) {
     return new Promise((res, rej) => {
       let userList = this.userList;
-      this.getUser(chat.id).then((double) => { //if user exist
+      return this.getUser(chat.id).then((double) => { //if user exist
         return res(double);
       }).catch(() => { //if new user
         let userObject = chat;
@@ -37,17 +37,19 @@ class userService {
     });
   }
 
-  saveUser(userObject) {
+  saveUser(newObject) {
     let userList = this.userList;
-    userList.push(userObject);
+    let objectIndex = userList.findIndex((us) => us.id === newObject.id);
+    userList.splice(objectIndex, 1);
+    userList.push(newObject);
     this.userList = userList;
     return Promise.resolve();
   }
 
   deleteUser(userId) {
-    this.getUser(userId).then((foundUser) => {
+    return this.getUser(userId).then((foundUser) => {
       let userList = this.userList;
-      userList.splice(userList.indexOf(foundUser));
+      userList.splice(userList.indexOf(foundUser, 1));
       this.userList = userList;
       return Promise.resolve();
     }).catch(() => {
@@ -63,7 +65,7 @@ class userService {
   cleanCodeForUser(userObject, codeString) {
     let found = userObject.codes.indexOf(codeString);
     if (found > -1) {
-      userObject.codes.splice(found);
+      userObject.codes.splice(found, 1);
       return this.saveUser(userObject);
     } else {
       return Promise.reject();

@@ -34,8 +34,10 @@ class timerService {
   sendTimer(user) {
     return this.getTimer(user.finishTime).then((timer) => {
       eventer.emit('message:send', user.id, timer.h + ':' + timer.m + ':' + timer.s);
+      return Promise.resolve();
     }).catch((err) => {
       console.error(err || 'something wrong with timer');
+      return Promise.reject();
     })
   }
 
@@ -44,8 +46,9 @@ class timerService {
       user.finishTime = moment.unix(user.finishTime).add(count, 'seconds').unix();
       return userService.saveUser(user).then(() => {
         eventer.emit('message:send', user.id, "Ваш таймер обновлен " + user.title);
-        this.sendTimer(user);
-        return res(moment.unix(user.finishTime).format('lll:s'));
+        this.sendTimer(user).then(() => {
+          return res(moment.unix(user.finishTime).format('lll:s'));
+        });
       }).catch(rej);
     });
   };

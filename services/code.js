@@ -4,12 +4,11 @@ class codeService {
 
   getCode(codeString) {
     let codeObject = this.codeBase.find((cd) => cd.string === codeString);
-    if (codeObject)
-      return codeObject ? Promise.resolve(codeObject) : Promise.reject();
+    return codeObject ? Promise.resolve(codeObject) : Promise.reject();
   }
 
   newCode(codeString, codeValue) {
-    return this.getCode(codeString).then((codeObject) => {
+    return this.getCode(codeString).then(() => {
       return Promise.reject('Already added');
     }).catch(() => {
       let codeBase = this.codeBase;
@@ -29,10 +28,10 @@ class codeService {
     return new Promise((res, rej) => {
       this.getCode(codeString).then((found) => {
         let codeBase = this.codeBase;
-        if (!codeValue) {
-          codeBase.splice(codeBase.indexOf(found));
-        } else {
-          found.value = codeValue; //mutable?
+        codeBase.splice(codeBase.indexOf(found), 1);
+        if (codeValue) {
+          found.value = codeValue;
+          codeBase.push(found);
         }
         this.codeBase = codeBase;
         return res();
@@ -53,6 +52,5 @@ class codeService {
       }
     })
   }
-
 }
 module.exports = new codeService();
