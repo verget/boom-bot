@@ -1,13 +1,13 @@
 # Telegram bot for city quest   
 
 builded with `node-telegram-bot-api` from https://github.com/yagop/node-telegram-bot-api
-###Comand list
+### Comand list
 
-####For users
+#### For users
 `/start_game` Начало игры, выставляет финишное время на сейчас + 30 минут <br>
 `/time` - Показывает оставшееся время, запускает игру, если она еще не запущена. <br>
 
-####For authors
+#### For authors
 `/code_list` - Показывает список кодов с их стоимостью.
 `/create_code [code_name] [code_value]` - Создает новый код [code_name] со стоимостью  [code_value]. <br>
 `/delete_code [code_name]` - Удаляет код с именем [code_name]. <br>
