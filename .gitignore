@@ -1,4 +1,5 @@
 
 node_modules/*
+
 # Heroku environment configuration
 /.idea/

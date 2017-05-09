@@ -1,4 +1,4 @@
-const token = process.env.TOKEN || "334935256:AAHjOFyqCVLK5pdbZ98_TvZTepLg-jrt9NQ";
+const token = "334935256:AAHjOFyqCVLK5pdbZ98_TvZTepLg-jrt9NQ";
 const fs = require('fs');
 const moment = require('moment');
 const Bot = require('node-telegram-bot-api');
@@ -9,7 +9,7 @@ const CodeService = require('./code');
 const admins = [45417065];
 
 let bot;
-let users = [];
+
 moment.locale('ru');
 if (process.env.NODE_ENV === 'production') {
   bot = new Bot(token);
@@ -44,115 +44,74 @@ const getTimer = (finishTime) => {
   });
 };
 
+const sendTimer = (user) => {
+  return getTimer(user.finishTime).then((timer) => {
+    return bot.sendMessage(user.id, timer.h + ':' + timer.m + ':' + timer.s).then(() => {
+      return Promise.resolve();
+    });
+  }).catch((err) => {
+    console.error(err || 'something wrong with timer');
+  })
+}
+
 const changeTimer = (user, count) => {
   return new Promise((res, rej) => {
     user.finishTime = moment.unix(user.finishTime).add(count, 'seconds').unix();
     return UserService.saveUser(user).then(() => {
       return bot.sendMessage(user.id, "Ваш таймер обновлен " + user.title).then((message) => {
-        let currentUser = users.find((usr) => usr.id === user.id);
-        if (!currentUser) {
-          users.push({
-            id: user.id
-          });
-        } else {
-          currentUser.timer_message_id = '';
-        }
-        res(moment.unix(user.finishTime).format('lll:s'));
+        return sendTimer(user).then(() => {
+          res(moment.unix(user.finishTime).format('lll:s'));
+        });
       })
     }).catch(rej);
   });
 };
 
-const globalInterval = () => {
-  let intervalId = setInterval(() => {
-    if (!users.length) {
-      return false;
-    }
-    console.log(users);
-    for (let user of users) {
-      if (user) {
-        return UserService.getUser(user.id).then((userObject) => {
-          if (userObject.finishTime) {
-            return getTimer(userObject.finishTime).then((timer) => {
-              if (user.timer_message_id) {
-                bot.editMessageText(timer.h + ':' + timer.m + ':' + timer.s, {
-                  'chat_id': user.id, 'message_id': user.timer_message_id
-                }).then().catch((err) => {
-                  console.error('edit message err');
-                })
-              } else {
-                bot.sendMessage(user.id, timer.h + ':' + timer.m + ':' + timer.s)
-                  .then((sentMessage) => {
-                    user.timer_message_id = sentMessage.message_id;
-                  });
-              }
-              if (timer.zero) {
-                users.splice(users.indexOf(user));
-                return false;
-              }
-            }).catch((err) => {
-              console.error(err || 'something wrong with timer');
-            })
-          } else {
-            console.error('something wrong with user');
-          }
-        }).catch(() => {
-          return false;
-        });
-      }
-    }
-  }, 1000);
-};
-
 const userInit = (chat) => {
-  if (fs.existsSync('users/' + chat.id + '.json')) { //if user exist
-    return bot.sendMessage(chat.id, "Ваша игра уже идет").then(() => {
-      let currentUser = users.find((usr) => usr.id === chat.id);
-      if (!currentUser) {
-        users.push({
-          id: chat.id
-        });
-      } else {
-        currentUser.timer_message_id = '';
-      }
-      return false;
-    });
-  }
-
-  //if new user
-  let userObject = chat;
-  userObject.finishTime = moment().add(30, 'minutes').unix();
-  if (!userObject.title){
-    userObject.title = userObject.first_name;
-  }
-  userObject.codes = [];
-  fs.writeFile('users/' + chat.id + '.json', JSON.stringify(userObject), (err) => {
-    if (err) {
-      return console.error(err);
-    }
-    return bot.sendMessage(chat.id, "Ваша игра началась " + userObject.title).then(() => {
-      users.push({
-        id: chat.id
+  return new Promise((res, rej) => {
+    if (fs.existsSync('users/' + chat.id + '.json')) { //if user exist
+      return UserService.getUser(chat.id).then((user) => {
+        return res(user);
       });
-    })
-  }); //create new user file with user data from Tg
-  return false;
+    } //if new user
+    let userObject = chat;
+    userObject.finishTime = moment().add(30, 'minutes').unix();
+    if (!userObject.title){
+      userObject.title = userObject.first_name;
+    }
+    userObject.codes = [];
+    fs.writeFile('users/' + chat.id + '.json', JSON.stringify(userObject), (err) => {
+      if (err) {
+        return rej(console.error(err));
+      }
+      return bot.sendMessage(chat.id, "Ваша игра началась " + userObject.title).then(() => {
+        return res(userObject);
+      })
+    }); //create new user file with user data from Tg
+  });
 };
 
 const useCode = (chat_id, code) => {
   return UserService.getUser(chat_id).then((user) => {
-    if (!user.codes.find((oldCode) => oldCode === code.string)) {
-      return changeTimer(user, code.value).then(() => {
-        user.codes.push(code.string);
-        return UserService.saveUser(user).then(() => {
-          return true;
+    if (user.finishTime > moment().unix()) {
+      if (!user.codes.find((oldCode) => oldCode === code.string)) {
+        return changeTimer(user, code.value).then(() => {
+          user.codes.push(code.string);
+          return UserService.saveUser(user).then(() => {
+            return sendTimer(user);
+          });
         });
-      });
-    } else {
-      return bot.sendMessage(chat_id, "Было").then(() => {
+      } else {
+        return bot.sendMessage(chat_id, "Было").then(() => {
+          return false;
+        });
+      }
+    }else{
+      return bot.sendMessage(chat_id, "Извините, ваше время уже истекло").then(() => {
         return false;
       });
     }
+
   }).catch(() => {
     return bot.sendMessage(chat_id, "Ваша игра еще не началась, отправьте /start").then(() => {
       return false;
@@ -160,14 +119,11 @@ const useCode = (chat_id, code) => {
   });
 };
 
-bot.onText(/\/start/, function(msg) {
-  return userInit(msg.chat);
-});
-
 bot.onText(/\/help/, function(msg) {
   if (admins.indexOf(msg.chat.id) < 0) {
     return bot.sendMessage(msg.chat.id,
-      "/start_game Начало игры, выставляет финишное время на сейчас + 30 минут \n"
+      "/start_game Начало игры, выставляет финишное время на сейчас + 30 минут \n" +
+      "/time - Показывает оставшееся время, запускает игру, если она еще не запущена."
     );
   }
   return bot.sendMessage(msg.chat.id,
@@ -185,21 +141,21 @@ bot.onText(/\/help/, function(msg) {
 });
 
 bot.onText(/\/start_game/, function(msg) {
-  return userInit(msg.chat);
+  return userInit(msg.chat).then((user) => {
+    return sendTimer(user);
+  });
 });
 
-bot.onText(/\/stop_digest/, () => { //admin func, no idea for why I need it
-  if (admins.indexOf(msg.chat.id) < 0) {
-    return bot.sendMessage(msg.chat.id, "Нет прав");
-  }
-//  eventer.emit('game:stop');
+bot.onText(/\/time/, function(msg) {
+  return userInit(msg.chat).then((user) => {
+    return sendTimer(user);
+  });
 });
 
 bot.onText(/\/restart_game/, (msg) => { //admin func
   if (admins.indexOf(msg.chat.id) < 0) {
     return bot.sendMessage(msg.chat.id, "Нет прав");
   }
-  users = [];
   return UserService.deleteAllUsers().then(() => {
     return bot.sendMessage(msg.chat.id, "Все пользователи удалены");
   });
@@ -255,12 +211,12 @@ bot.onText(/\/change_code (.+) (.+)/, (msg, match) => { //admin func
   })
 });
 
-bot.onText(/\/user_list/, (msg, match) => { //admin func
-  if (admins.indexOf(msg.chat.id) < 0) {
-    return bot.sendMessage(msg.chat.id, "Нет прав");
-  }
-  return bot.sendMessage(msg.chat.id, JSON.stringify(users));
-});
+// bot.onText(/\/user_list/, (msg, match) => { //admin func
+//   if (admins.indexOf(msg.chat.id) < 0) {
+//     return bot.sendMessage(msg.chat.id, "Нет прав");
+//   }
+//   return bot.sendMessage(msg.chat.id, JSON.stringify(users));
+// });
 
 bot.onText(/\/code_list/, (msg, match) => { //admin func
   if (admins.indexOf(msg.chat.id) < 0) {
@@ -292,7 +248,6 @@ bot.onText(/\/delete_user (.+)/, (msg, match) => { //admin func
   const userId = match[1] * 1;
   if (Number.isInteger(userId)) {
     return UserService.deleteUser(userId).then(() => {
-      users.splice(users.indexOf(userId));
       return bot.sendMessage(msg.chat.id, "Юзер " + userId + " удален");
     }).catch(() => {
       return bot.sendMessage(msg.chat.id, "Юзер не найден");
@@ -332,7 +287,9 @@ bot.onText(/(.+)/, (msg, match) => {
   }
   let foundCode = CodeService.codeBase.find((code) => code.string === match[1]);
   if (foundCode) {
-    useCode(msg.chat.id, foundCode);
+    return useCode(msg.chat.id, foundCode);
+  }else{
+    bot.sendMessage(msg.chat.id, "Не понимаю о чем вы.");
   }
   return false;
 });
@@ -344,7 +301,5 @@ bot.on('polling_error', (error) => {
 bot.on('webhook_error', (error) => {
   console.error('webhook_error ' + error);  // => 'EPARSE'
 });
-
-globalInterval();
 
 module.exports = bot;

@@ -1,26 +1,30 @@
 const fs = require('fs');
 
 class UserService {
-  
+
   constructor() {
-  
+
   }
-  
+
   getUser(user_id) {
     return new Promise((res, rej) => {
       if (fs.existsSync('users/' + user_id + '.json')) {
-        return fs.readFile('users/' + user_id + '.json', 'utf8', function(err, userString) {
+        return fs.readFile('users/' + user_id + '.json', 'utf8', function (err, userString) {
           if (err) {
             console.error(err);
             rej(false);
           }
-          return res(JSON.parse(userString));
+          if (userString){
+            return res(JSON.parse(userString));
+          }else{
+            rej(false);
+          }
         });
       }
       rej();
     });
   }
-  
+
   saveUser(userObject) {
     return new Promise((res, rej) => {
       fs.writeFile('users/' + userObject.id + '.json', JSON.stringify(userObject), (err) => {
@@ -31,7 +35,7 @@ class UserService {
       });
     });
   }
-  
+
   deleteUser(userId) {
     return new Promise((res, rej) => {
       fs.unlink('users/' + userId + '.json', (err) => {
@@ -42,12 +46,12 @@ class UserService {
       });
     });
   }
-  
+
   deleteAllUsers() {
     return new Promise((res, rej) => {
       let path = 'users';
-      if( fs.existsSync(path) ) {
-        fs.readdirSync(path).forEach(function(file, index){
+      if (fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(function (file, index) {
           let curPath = path + "/" + file;
           return res(fs.unlinkSync(curPath));
         });
@@ -55,7 +59,7 @@ class UserService {
       return rej();
     });
   }
-  
+
   cleanCode(userObject, codeString) {
     let found = userObject.codes.indexOf(codeString);
     if (found > -1) {
@@ -65,7 +69,7 @@ class UserService {
       return Promise.reject();
     }
   }
-  
+
 }
 
 module.exports = new UserService();
