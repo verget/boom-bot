@@ -1,4 +1,4 @@
-const token = "334935256:AAHjOFyqCVLK5pdbZ98_TvZTepLg-jrt9NQ";
+const token = process.env.TOKEN;
 const fs = require('fs');
 const moment = require('moment');
 

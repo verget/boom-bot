@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-class codeService {
+class CodeService {
 
   getCode(codeString) {
     let codeObject = this.codeBase.find((cd) => cd.string === codeString);
@@ -53,4 +53,4 @@ class codeService {
     })
   }
 }
-module.exports = new codeService();
+module.exports = new CodeService();

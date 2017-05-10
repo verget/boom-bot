@@ -3,3 +3,5 @@ node_modules/*
 
 # Heroku environment configuration
 /.idea/
+/storage/codes.json
+/storage/users.json

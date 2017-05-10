@@ -1,6 +1,12 @@
 # Telegram bot for city quest   
 
-builded with `node-telegram-bot-api` from https://github.com/yagop/node-telegram-bot-api
+developed with `node-telegram-bot-api` from https://github.com/yagop/node-telegram-bot-api
+
+### Getting start   
+
+1. set your bot token from `@BotFather` to `.env-example` file and rename it to `.env`
+2. run `npm start`
+
 ### Comand list 
 
 #### For users  
@@ -19,3 +25,6 @@ builded with `node-telegram-bot-api` from https://github.com/yagop/node-telegram
 `/restart_game` - Перезагрузка, нужна для старта новой игры, команда удаляет всех сохраненных пользователей. <br>
 [code_value] - измеряется в секундах; [code_name] - строка русский или английских букв и цифр, не может начинаться с /. <br>
  
+ ### Trouble shooting   
+ #### Remove webhook url (for disable heroku)    
+ https://api.telegram.org/bot<your-bot-token>/setWebhook?url= 

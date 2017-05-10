@@ -3,7 +3,7 @@ const moment = require('moment');
 
 const eventer = require('./eventer');
 
-class userService {
+class UserService {
 
   userInit(chat) {
     return new Promise((res, rej) => {
@@ -85,4 +85,4 @@ class userService {
   }
 }
 
-module.exports = new userService();
+module.exports = new UserService();

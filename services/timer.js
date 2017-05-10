@@ -3,7 +3,7 @@ const eventer = require('./eventer');
 const userService = require('./user');
 moment.locale('ru');
 
-class timerService {
+class TimerService {
   constructor() {
 
   }
@@ -53,4 +53,4 @@ class timerService {
     });
   };
 }
-module.exports = new timerService();
+module.exports = new TimerService();
