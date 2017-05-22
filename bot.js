@@ -7,6 +7,7 @@ const Bot = require('node-telegram-bot-api');
 const userService = require('./services/user');
 const codeService = require('./services/code');
 const timerService = require('./services/timer');
+const animationService = require('./services/animation');
 const eventer = require('./services/eventer');
 
 const admins = JSON.parse(fs.readFileSync('storage/admins.json', 'utf8'));
@@ -211,6 +212,19 @@ bot.onText(/\/echo (.+)/, (msg, match) => {
   const resp = match[1]; // the captured "whatever"
   eventer.emit('message:send', msg.chat.id, resp);
 });
+
+bot.onText(/\/send_me_gif/, (msg) => {
+  let fileBuffer = fs.readFileSync('storage/1.gif');
+  console.log(fileBuffer);
+  bot.sendDocument(msg.chat.id, fileBuffer);
+});
+
+bot.onText(/\/new_gif/, (msg) => {
+  let fileBuffer = fs.readFileSync('storage/1.gif');
+  console.log(fileBuffer);
+  bot.sendDocument(msg.chat.id, fileBuffer);
+});
+
 
 bot.onText(/(.+)/, (msg, match) => {
   console.log('outside');
