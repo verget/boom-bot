@@ -9,7 +9,7 @@ const codeService = require('./services/code');
 const timerService = require('./services/timer');
 const eventer = require('./services/eventer');
 
-const admins = [45417065];
+const admins = JSON.parse(fs.readFileSync('storage/admins.json', 'utf8'));
 
 let bot;
 

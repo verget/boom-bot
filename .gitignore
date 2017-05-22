@@ -5,3 +5,4 @@ node_modules/*
 /.idea/
 /storage/codes.json
 /storage/users.json
+/storage/admins.json
